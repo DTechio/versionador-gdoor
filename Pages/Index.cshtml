@@ -1,0 +1,144 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Versionamento";
+}
+
+<section class="page-shell">
+    <header class="version-header">
+        <div>
+            <h1>Versionador Gdoor Desktop</h1>
+            <p class="main-version">Últimas Versões Disponibilizadas - <strong id="mainVersion">@Model.MainVersion</strong></p>
+        </div>
+        <div class="header-actions">
+            <span class="changed-pill"><span id="changedCount">@Model.ChangedCount</span> alterado(s)</span>
+            <button class="btn btn-outline-dark theme-toggle" type="button" id="themeToggle" aria-pressed="false">Modo escuro</button>
+            <button class="btn btn-outline-dark" type="button" id="previewButton">Pré-visualizar INI</button>
+            <button class="btn btn-dark" type="button" id="exportButton">Gerar versoes.ini</button>
+        </div>
+    </header>
+
+    <details class="about-panel">
+        <summary>Sobre</summary>
+        <div class="about-content">
+            <p>As versões do software são controladas pelas casas de versão do Delphi no formato <strong>1.0.0.1</strong>.</p>
+            <p><strong>Versão</strong> e <strong>Subversão</strong> (<strong>1.0</strong>.0.1) não são usadas no processo atual; <strong>Release</strong> (1.0.<strong>0</strong>.1) controla grandes alteracões de pacote; <strong>Build</strong> (1.0.0.<strong>1</strong>) controla pacotes disponibilizados individualmente por executável.</p>
+        </div>
+    </details>
+
+    <div class="toolbar-row">
+        <label class="delete-switch">
+            <input type="checkbox" id="deleteToggle">
+            Liberar exclusão
+        </label>
+        <span id="statusMessage" class="status-message" role="status" aria-live="polite"></span>
+    </div>
+
+    <div class="version-grid" id="versionGrid">
+        @foreach (var category in Model.Categories)
+        {
+            <section class="category-section" data-category-id="@category.Id">
+                <div class="category-title">
+                    <h2>@category.DisplayName</h2>
+                    <span>@category.SectionKey</span>
+                </div>
+
+                <div class="item-list" data-category-id="@category.Id">
+                    @foreach (var item in category.Items.OrderBy(item => item.SortOrder))
+                    {
+                        <article class="version-row @(item.IsChanged ? "changed" : "")" draggable="true" data-id="@item.Id" data-category-id="@category.Id" data-key="@item.IniKey">
+                            <button class="drag-handle" type="button" title="Arrastar">::</button>
+                            <div class="item-name">
+                                <strong>@item.DisplayName</strong>
+                                <span>@item.IniKey</span>
+                            </div>
+                            <label class="version-field">
+                                <span>Versao</span>
+                                <input class="version-input" type="text" value="@item.CurrentVersion" inputmode="decimal" autocomplete="off" aria-label="Versao de @item.DisplayName">
+                            </label>
+                            <div class="row-actions">
+                                <label class="generation-switch" title="Controla se esta versão sai preenchida no proximo INI">
+                                    <input class="generation-input" type="checkbox" @(item.IsChanged ? "checked" : "") aria-label="Gerar @item.DisplayName no INI">
+                                    Gerar no INI
+                                </label>
+                                <button class="btn btn-sm btn-outline-secondary increment-button" type="button" data-amount="1" title="Somar 1 ao último número">+1</button>
+                                <button class="btn btn-sm btn-outline-secondary increment-button" type="button" data-amount="2" title="Somar 2 ao último número">+2</button>
+                                <button class="btn btn-sm btn-outline-danger delete-button" type="button" title="Excluir">Excluir</button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+
+    <section class="add-panel">
+        <h2>Adicionar executável</h2>
+        <form id="addItemForm" class="add-form">
+            <label>
+                Nome exibido
+                <input type="text" name="displayName" required maxlength="160" placeholder="Ex.: NovoModulo.exe">
+            </label>
+            <label>
+                Chave do INI
+                <input type="text" name="iniKey" required maxlength="120" placeholder="Ex.: NovoModulo">
+            </label>
+            <label>
+                Categoria
+                <select name="categoryId" required>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id">@category.DisplayName (@category.SectionKey)</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Versão atual
+                <input type="text" name="currentVersion" maxlength="80" placeholder="4.0.0.0">
+            </label>
+            <button class="btn btn-dark" type="submit">Adicionar</button>
+        </form>
+    </section>
+
+    <section class="history-panel">
+        <h2>Historico recente</h2>
+        @if (Model.History.Count == 0)
+        {
+            <p>Nenhuma alteração registrada.</p>
+        }
+        else
+        {
+            <ol>
+                @foreach (var entry in Model.History)
+                {
+                    <li>
+                        <span>@entry.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        <strong>@entry.Action</strong>
+                        @if ((entry.Action == "version" || entry.Action == "increment") && !string.IsNullOrWhiteSpace(entry.ItemName))
+                        {
+                            <text>@entry.ItemName (@entry.ItemKey): @entry.OldVersion -> @entry.NewVersion. @entry.Details</text>
+                        }
+                        else if (entry.Action == "create" && !string.IsNullOrWhiteSpace(entry.ItemName))
+                        {
+                            <text>@entry.ItemName (@entry.ItemKey): criado com versao @(string.IsNullOrWhiteSpace(entry.NewVersion) ? "sem versao informada" : entry.NewVersion). @entry.Details</text>
+                        }
+                        else
+                        {
+                            <text>@entry.Details</text>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+    </section>
+</section>
+
+<dialog id="previewDialog" class="preview-dialog">
+    <form method="dialog">
+        <div class="dialog-header">
+            <h2>Pré-visualização do versoes.ini</h2>
+            <button class="btn btn-sm btn-outline-dark" value="close" type="submit">Fechar</button>
+        </div>
+        <pre id="iniPreview"></pre>
+    </form>
+</dialog>

@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+App_Data/*.db
+App_Data/*.db-*
+Versionador_Gdoor_Publicado*/
