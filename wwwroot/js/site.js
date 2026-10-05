@@ -9,6 +9,12 @@ const exportButton = document.getElementById("exportButton");
 const previewDialog = document.getElementById("previewDialog");
 const iniPreview = document.getElementById("iniPreview");
 const themeToggle = document.getElementById("themeToggle");
+const searchControl = document.getElementById("searchControl");
+const searchButton = document.getElementById("searchButton");
+const searchField = document.getElementById("searchField");
+const executableSearch = document.getElementById("executableSearch");
+const clearSearchButton = document.getElementById("clearSearchButton");
+const searchEmpty = document.getElementById("searchEmpty");
 
 const saveTimers = new Map();
 let draggedRow = null;
@@ -164,6 +170,69 @@ deleteToggle.addEventListener("change", () => {
   document.body.classList.toggle("delete-enabled", deleteToggle.checked);
 });
 
+function normalizeSearchText(value) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+function applySearchFilter() {
+  const query = normalizeSearchText(executableSearch.value);
+  const isSearching = query.length > 0;
+  let visibleCount = 0;
+
+  document.body.classList.toggle("search-active", isSearching);
+
+  document.querySelectorAll(".category-section").forEach((section) => {
+    let categoryMatches = 0;
+
+    section.querySelectorAll(".version-row").forEach((row) => {
+      const name = row.querySelector(".item-name strong")?.textContent || "";
+      const matches = !isSearching || normalizeSearchText(name).includes(query);
+
+      row.hidden = !matches;
+      row.draggable = !isSearching;
+      if (matches) {
+        categoryMatches += 1;
+        visibleCount += 1;
+      }
+    });
+
+    section.hidden = isSearching && categoryMatches === 0;
+  });
+
+  searchEmpty.hidden = !isSearching || visibleCount > 0;
+}
+
+function openSearch() {
+  searchButton.hidden = true;
+  searchField.hidden = false;
+  searchControl.classList.add("search-open");
+  document.body.classList.add("search-ui-open");
+  executableSearch.focus();
+}
+
+function closeSearch() {
+  executableSearch.value = "";
+  applySearchFilter();
+  searchField.hidden = true;
+  searchButton.hidden = false;
+  searchControl.classList.remove("search-open");
+  document.body.classList.remove("search-ui-open");
+  searchButton.focus();
+}
+
+searchButton.addEventListener("click", openSearch);
+clearSearchButton.addEventListener("click", closeSearch);
+executableSearch.addEventListener("input", applySearchFilter);
+executableSearch.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeSearch();
+  }
+});
+
 document.querySelectorAll(".delete-button").forEach((button) => {
   button.addEventListener("click", async () => {
     if (!deleteToggle.checked) {
@@ -179,6 +248,7 @@ document.querySelectorAll(".delete-button").forEach((button) => {
     try {
       await sendJson(`/api/items/${row.dataset.id}`, "DELETE");
       row.remove();
+      applySearchFilter();
       refreshChangedCount();
       setStatus("Item excluido.");
     } catch (error) {
@@ -281,7 +351,8 @@ async function persistOrder() {
 
 versionGrid.addEventListener("dragstart", (event) => {
   const row = event.target.closest(".version-row");
-  if (!row) {
+  if (!row || document.body.classList.contains("search-active")) {
+    event.preventDefault();
     return;
   }
 

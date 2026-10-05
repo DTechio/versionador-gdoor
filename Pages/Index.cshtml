@@ -32,7 +32,19 @@
             Liberar exclusão
         </label>
         <span id="statusMessage" class="status-message" role="status" aria-live="polite"></span>
+        <div class="search-control" id="searchControl">
+            <button class="btn btn-outline-dark search-button" type="button" id="searchButton">
+                <img class="search-button-icon" src="~/images/lupa.png" alt="" aria-hidden="true">
+                <span>Buscar</span>
+            </button>
+            <div class="search-field" id="searchField" hidden>
+                <input type="search" id="executableSearch" placeholder="Buscar executável" aria-label="Buscar executável pelo nome" autocomplete="off">
+                <button class="search-clear" type="button" id="clearSearchButton" title="Limpar busca" aria-label="Limpar busca">&times;</button>
+            </div>
+        </div>
     </div>
+
+    <p class="search-empty" id="searchEmpty" role="status" hidden>Nenhum executável encontrado.</p>
 
     <div class="version-grid" id="versionGrid">
         @foreach (var category in Model.Categories)
